@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UptimeDesk — Kuma Monitor Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#05070f;--s1:#090d1a;--s2:#0e1424;--s3:#131b2e;
+  --border:rgba(99,179,255,.1);--border2:rgba(99,179,255,.18);
+  --text:#d6e8ff;--muted:#3a4d6b;--muted2:#5a7499;
+  --green:#00e5a0;--green-d:rgba(0,229,160,.1);--green-g:rgba(0,229,160,.35);
+  --red:#ff4d6d;--red-d:rgba(255,77,109,.1);
+  --amber:#ffbe0b;--amber-d:rgba(255,190,11,.1);
+  --blue:#63b3ff;--blue-d:rgba(99,179,255,.1);
+  --purple:#bf9fff;--purple-d:rgba(191,159,255,.1);
+  --cyan:#00d4ff;--mono:'IBM Plex Mono',monospace;--sans:'Outfit',sans-serif;--r:10px;
+  --nav-bg:rgba(5,7,15,.92);
+}
+body.light{
+  --bg:#f0f4f8;--s1:#ffffff;--s2:#e8edf3;--s3:#dde3ec;
+  --border:rgba(30,80,160,.13);--border2:rgba(30,80,160,.22);
+  --text:#1a2540;--muted:#8fa3be;--muted2:#4a6080;
+  --green:#00a872;--green-d:rgba(0,168,114,.1);--green-g:rgba(0,168,114,.3);
+  --red:#e02049;--red-d:rgba(224,32,73,.08);
+  --amber:#d08000;--amber-d:rgba(208,128,0,.1);
+  --blue:#1a6fd4;--blue-d:rgba(26,111,212,.1);
+  --purple:#7c52d8;--purple-d:rgba(124,82,216,.1);
+  --cyan:#0099cc;
+  --nav-bg:rgba(255,255,255,.92);
+}
+body.light::before{background:
+  radial-gradient(ellipse 70% 50% at 5% 0%,rgba(0,168,114,.06) 0%,transparent 55%),
+  radial-gradient(ellipse 50% 40% at 95% 100%,rgba(26,111,212,.06) 0%,transparent 55%)!important;}
+/* theme toggle button */
+.theme-btn{background:none;border:1px solid var(--border2);cursor:pointer;
+  width:34px;height:34px;border-radius:8px;font-size:16px;display:flex;align-items:center;
+  justify-content:center;color:var(--muted2);transition:all .18s;flex-shrink:0}
+.theme-btn:hover{background:var(--s2);color:var(--text)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse 70% 50% at 5% 0%,rgba(0,229,160,.05) 0%,transparent 55%),
+  radial-gradient(ellipse 50% 40% at 95% 100%,rgba(99,179,255,.05) 0%,transparent 55%);
+  pointer-events:none;z-index:0}
+
+nav{position:sticky;top:0;z-index:300;display:flex;align-items:center;justify-content:space-between;
+  padding:0 1.5rem;height:56px;background:var(--nav-bg);border-bottom:1px solid var(--border);backdrop-filter:blur(20px)}
+.logo{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:800;letter-spacing:-.4px}
+.logo-sq{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--green),#007a56);
+  display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 18px var(--green-g)}
+.badge-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:999px;
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  border:1px solid var(--border);background:var(--s2);color:var(--muted2);transition:all .25s}
+.badge-pill.ok{border-color:rgba(0,229,160,.4);color:var(--green);background:var(--green-d)}
+.badge-pill.er{border-color:rgba(255,77,109,.4);color:var(--red);background:var(--red-d)}
+.badge-pill.ld{border-color:rgba(255,190,11,.4);color:var(--amber);background:var(--amber-d)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.ok .dot,.ld .dot{animation:blink 1.8s infinite}
+.ws-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;
+  font-family:var(--mono);font-size:10px;font-weight:700;
+  border:1px solid var(--border);background:var(--s2);color:var(--muted2);transition:all .25s}
+.ws-pill.live{border-color:rgba(0,229,160,.4);color:var(--green);background:var(--green-d)}
+.ws-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.ws-pill.live .ws-dot{animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+.wrap{max-width:1400px;margin:0 auto;padding:1.4rem;position:relative;z-index:1}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:1.3rem;margin-bottom:1.1rem}
+.card-h{font-size:9px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted2);
+  display:flex;align-items:center;gap:7px;margin-bottom:1rem}
+.bar{width:3px;height:13px;border-radius:2px;background:var(--green);flex-shrink:0}
+.bar.b{background:var(--blue)}.bar.a{background:var(--amber)}.bar.r{background:var(--red)}
+
+.fg{display:grid;gap:9px;align-items:end}
+.fg-4{grid-template-columns:2.2fr 1.2fr 1.2fr auto}
+@media(max-width:800px){.fg-4{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.fg-4{grid-template-columns:1fr}}
+
+label{display:block;font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted2);margin-bottom:4px}
+input,select,textarea{width:100%;background:var(--s2);border:1px solid var(--border);color:var(--text);
+  font-family:var(--mono);font-size:12px;border-radius:7px;padding:8px 12px;outline:none;transition:border-color .18s,box-shadow .18s}
+input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,229,160,.07)}
+input[type=password]{letter-spacing:3px}
+textarea{resize:vertical;min-height:90px;line-height:1.8}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;
+  font-size:13px;font-weight:600;border-radius:7px;border:1px solid var(--border2);
+  background:transparent;color:var(--text);cursor:pointer;transition:all .15s;font-family:var(--sans);white-space:nowrap}
+.btn:hover{background:var(--s2)}.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.3;cursor:not-allowed;transform:none!important}
+.btn-g{background:var(--green);color:#00120b;border-color:var(--green);font-weight:700}
+.btn-g:hover{background:#1fffc0;border-color:#1fffc0;box-shadow:0 0 22px var(--green-g);color:#00120b}
+.btn-r{border-color:rgba(255,77,109,.35);color:var(--red)}.btn-r:hover{background:var(--red-d)}
+.btn-b{border-color:rgba(99,179,255,.35);color:var(--blue)}.btn-b:hover{background:var(--blue-d)}
+.btn-sm{padding:6px 12px;font-size:11px}.btn-full{width:100%}
+
+.alert{padding:9px 13px;border-radius:7px;font-size:12px;line-height:1.7;margin-top:9px}
+.al-g{background:var(--green-d);border:1px solid rgba(0,229,160,.25);color:var(--green)}
+.al-b{background:var(--blue-d);border:1px solid var(--border2);color:var(--text)}
+
+.logbox{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:9px 13px;
+  font-family:var(--mono);font-size:11px;color:var(--text);max-height:180px;overflow-y:auto;
+  margin-top:9px;display:none;line-height:2}
+.logbox.show{display:block}
+.lg{color:var(--green)}.lr{color:var(--red)}.la{color:var(--amber)}.lc{color:var(--cyan)}
+
+.stats{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:1.1rem}
+.sbox{flex:1;min-width:80px;background:var(--s1);border:1px solid var(--border);border-radius:9px;
+  padding:13px 15px;display:flex;align-items:center;gap:10px}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sl{font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:1px}
+.sv{font-size:21px;font-weight:700;font-family:var(--mono);line-height:1}
+
+.prog{display:none;margin-bottom:1rem}
+.prog-info{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);color:var(--text);margin-bottom:4px}
+.prog-track{height:3px;background:var(--s3);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--green),#7affd6);border-radius:2px;transition:width .3s}
+
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;gap:8px;flex-wrap:wrap}
+.tl{display:flex;gap:7px;flex-wrap:wrap}.tr{display:flex;align-items:center;gap:7px}
+
+.fbar{display:flex;gap:7px;margin-bottom:.8rem;flex-wrap:wrap;align-items:center}
+.fbar input{flex:1;min-width:150px;background:var(--s1);padding:7px 12px;font-size:13px}
+.chip{padding:5px 11px;border-radius:6px;border:1px solid var(--border);background:transparent;
+  color:var(--muted2);cursor:pointer;font-family:var(--sans);font-size:11px;font-weight:600;transition:all .15s}
+.chip:hover{background:var(--s2)}.chip.on{border-color:var(--green);color:var(--green);background:var(--green-d)}
+
+.tw{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.th{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.2rem;
+  border-bottom:1px solid var(--border);flex-wrap:wrap;gap:7px}
+.tt{font-size:13px;font-weight:700}.ts{font-size:11px;color:var(--muted2);font-family:var(--mono)}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--s2);border-bottom:1px solid var(--border)}
+th{text-align:left;font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--muted2);padding:8px 11px;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--muted2)}
+td{padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(0,0,0,.025)}
+@keyframes rowflash{0%{background:rgba(0,229,160,.1)}100%{background:transparent}}
+.flash{animation:rowflash .8s ease}
+
+.bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;
+  font-size:11px;font-weight:700;font-family:var(--mono);white-space:nowrap;border:1px solid}
+.bd{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.bup{color:var(--green);border-color:rgba(0,229,160,.3);background:var(--green-d)}
+.bup .bd{box-shadow:0 0 4px var(--green);animation:blink 2s infinite}
+.bdn{color:var(--red);border-color:rgba(255,77,109,.3);background:var(--red-d)}
+.brd{color:var(--purple);border-color:rgba(191,159,255,.3);background:var(--purple-d)}
+.bpd{color:var(--amber);border-color:rgba(255,190,11,.3);background:var(--amber-d)}
+.bpd .bd{animation:blink .7s infinite}
+.bps{color:var(--blue);border-color:rgba(99,179,255,.3);background:var(--blue-d)}
+.bmt{color:var(--muted2);border-color:var(--border2);background:rgba(255,255,255,.03)}
+
+.cc{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px}
+.c2{background:rgba(0,229,160,.12);color:var(--green)}
+.c3{background:rgba(191,159,255,.12);color:var(--purple)}
+.c4{background:rgba(255,77,109,.12);color:var(--red)}
+.c5{background:rgba(255,190,11,.12);color:var(--amber)}
+.cna{background:var(--s3);color:var(--muted)}
+.src-ws{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;
+  color:var(--green);border:1px solid rgba(0,229,160,.3);background:rgba(0,229,160,.06)}
+.src-file{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;
+  color:var(--cyan);border:1px solid rgba(0,212,255,.3);background:rgba(0,212,255,.06)}
+
+.tc{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+.wyes{color:var(--green);font-family:var(--mono);font-size:12px;font-weight:700}
+.wno{color:var(--red);font-family:var(--mono);font-size:12px;font-weight:700}
+.wna{color:var(--muted);font-family:var(--mono);font-size:12px}
+.png-g{color:var(--green);font-family:var(--mono);font-size:11px;font-weight:600}
+.png-s{color:var(--amber);font-family:var(--mono);font-size:11px;font-weight:600}
+.png-n{color:var(--muted);font-family:var(--mono);font-size:11px}
+.upt-g{color:var(--green);font-family:var(--mono);font-size:12px;font-weight:700}
+.upt-b{color:var(--red);font-family:var(--mono);font-size:12px;font-weight:700}
+.upt-n{color:var(--muted);font-family:var(--mono);font-size:12px}
+.url-cell{font-family:var(--mono);font-size:11px}
+.url-cell a{color:var(--blue);text-decoration:none}
+.url-cell a:hover{color:var(--cyan)}
+.nc{font-size:12px;color:var(--muted2)}
+.del-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;
+  padding:3px 7px;border-radius:5px;transition:all .13s;line-height:1}
+.del-btn:hover{color:var(--red);background:var(--red-d)}
+.del-kuma-btn{background:none;border:1px solid rgba(255,77,109,.25);cursor:pointer;font-size:10px;font-weight:600;
+  padding:3px 8px;border-radius:5px;transition:all .13s;line-height:1;font-family:var(--mono);color:var(--red)}
+.del-kuma-btn:hover{background:var(--red-d)}
+.act-btn{background:none;border:1px solid var(--border);cursor:pointer;font-size:10px;font-weight:600;
+  padding:3px 8px;border-radius:5px;transition:all .13s;line-height:1;font-family:var(--mono)}
+.act-stop{color:var(--amber);border-color:rgba(255,190,11,.3)}.act-stop:hover{background:var(--amber-d)}
+.act-start{color:var(--green);border-color:rgba(0,229,160,.3)}.act-start:hover{background:var(--green-d)}
+.act-visit{color:var(--blue);border-color:rgba(99,179,255,.3)}.act-visit:hover{background:var(--blue-d)}
+.act-row{display:flex;gap:3px;align-items:center;flex-wrap:nowrap}
+
+.empty{text-align:center;padding:4rem 2rem}
+.empty-ico{font-size:40px;margin-bottom:.8rem;opacity:.15}
+.empty-t{font-size:16px;font-weight:700;margin-bottom:6px}
+.empty-s{font-size:12px;color:var(--muted2)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;margin-bottom:1.1rem}
+@media(max-width:680px){.two{grid-template-columns:1fr}}
+
+.dz{border:2px dashed var(--border2);border-radius:7px;padding:18px;text-align:center;
+  cursor:pointer;transition:all .2s;position:relative;margin-bottom:9px}
+.dz:hover,.dz.drag{border-color:var(--amber);background:var(--amber-d)}
+.dz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dz-t{font-size:12px;color:var(--muted2);line-height:1.6}
+.dz-t strong{color:var(--amber)}
+
+/* file preview table */
+.preview-wrap{margin-top:9px;max-height:180px;overflow-y:auto;border-radius:7px;border:1px solid var(--border)}
+.preview-wrap table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+.preview-wrap th{background:var(--s3);padding:5px 9px;text-align:left;color:var(--text);font-size:9px;letter-spacing:.8px;text-transform:uppercase}
+.preview-wrap td{padding:5px 9px;border-top:1px solid var(--border);color:var(--text);background:var(--s1)}
+.preview-url{color:var(--blue)}
+.pv-ok{color:var(--green)}.pv-bad{color:var(--red)}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:7px 12px;background:var(--s2);
+  border-top:1px solid var(--border);font-size:11px;color:var(--text);font-family:var(--mono)}
+.leg{display:flex;align-items:center;gap:4px}
+
+#toast{position:fixed;bottom:1.4rem;right:1.4rem;z-index:999;
+  background:var(--s2);border:1px solid var(--border2);color:var(--text);
+  padding:10px 17px;border-radius:9px;font-size:13px;max-width:320px;
+  transform:translateY(60px);opacity:0;pointer-events:none;
+  transition:all .22s cubic-bezier(.34,1.56,.64,1);font-weight:500}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.tok{border-color:rgba(0,229,160,.5);color:var(--green)}
+#toast.ter{border-color:rgba(255,77,109,.5);color:var(--red)}
+#toast.tin{border-color:rgba(99,179,255,.5);color:var(--blue)}
+
+.info{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:10px 14px;
+  font-size:11px;line-height:1.8;color:var(--text);margin-top:9px;font-family:var(--mono)}
+.info code{display:inline-block;background:var(--s3);border:1px solid var(--border2);
+  border-radius:5px;padding:1px 7px;color:var(--text);font-size:10px}
+
+footer{text-align:center;padding:1.5rem;font-size:11px;color:var(--muted2);
+  border-top:1px solid var(--border);margin-top:2rem;font-family:var(--mono);position:relative;z-index:1}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo" style="color:var(--text)">
+    <div class="logo-sq">⬆</div>
+    UptimeDesk
+    <span style="font-size:9px;color:var(--muted2);font-family:var(--mono);font-weight:400;margin-left:2px">v15</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:9px">
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+    <div class="ws-pill" id="ws-pill"><span class="ws-dot"></span><span id="ws-txt">WS off</span></div>
+    <div class="badge-pill" id="conn-badge"><span class="dot"></span><span id="conn-txt">Not connected</span></div>
+    <span id="nav-cnt" style="font-family:var(--mono);font-size:10px;color:var(--muted2);display:none"></span>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- STEP 1 -->
+<div class="card">
+  <div class="card-h"><span class="bar"></span>Step 1 — Connect to Uptime Kuma</div>
+  <div class="fg fg-4">
+    <div><label>Kuma URL</label><input id="kurl" type="url" placeholder="https://uptime.example.com" value="https://uptime.pixnom.com"/></div>
+    <div><label>Username</label><input id="kuser" type="text" placeholder="admin"/></div>
+    <div><label>Password</label><input id="kpass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')connect()"/></div>
+    <div style="align-self:end"><button class="btn btn-g" id="btn-conn" onclick="connect()">⚡ Connect</button></div>
+  </div>
+  <div class="al-b alert">
+    <strong style="color:var(--text)">How it works:</strong> Frontend → <code>localhost:3000</code> (your Node.js backend) → Kuma WebSocket. Run <code>node server.js</code> before connecting.<br>
+    <span style="color:var(--green);font-size:11px">✓ Credentials saved locally — page auto-connects on reload.</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:9px;margin-top:10px;flex-wrap:wrap">
+    <button class="btn btn-sm" id="log-btn" onclick="toggleLog()">▸ Log</button>
+    <button class="btn btn-sm" id="btn-ref" style="display:none" onclick="pollMonitors()">↻ Refresh</button>
+    <button class="btn btn-sm btn-r" onclick="forgetCreds()" title="Clear saved credentials">🗑 Forget</button>
+    <span id="sync-lbl" style="font-family:var(--mono);font-size:10px;color:var(--muted2)"></span>
+  </div>
+  <div class="logbox" id="logbox"></div>
+</div>
+
+<!-- STEP 2 -->
+<div class="two">
+  <div class="card" style="margin-bottom:0">
+    <div class="card-h"><span class="bar b"></span>Step 2A — Add Websites to Monitor</div>
+    <div><label>Enter URLs (one per line)</label>
+    <textarea id="bulk-in" placeholder="google.com&#10;github.com&#10;https://yoursite.com"></textarea></div>
+    <button class="btn btn-g btn-full" style="margin-top:8px" onclick="addMonitors()">＋ Add as Kuma Monitors</button>
+    <div class="info">Must be connected. Monitors appear instantly as Pending — status updates automatically every 1s until Up/Down arrives from Kuma.</div>
+  </div>
+
+  <div class="card" style="margin-bottom:0">
+    <div class="card-h"><span class="bar a"></span>Step 2B — Upload Excel / CSV / TXT</div>
+    <div class="dz" id="dz">
+      <input type="file" id="fi" accept=".xlsx,.xls,.csv,.txt" onchange="handleFile(event)"/>
+      <div style="font-size:22px;margin-bottom:4px">📂</div>
+      <div class="dz-t">Drop or click — <strong>.xlsx · .csv · .txt</strong><br>
+        <span style="font-size:10px;color:var(--muted2)">Auto-detects URL column · <span style="color:var(--green);font-weight:700">Auto-adds &amp; monitors on upload ⚡</span></span>
+      </div>
+    </div>
+    <div id="file-preview"></div>
+    <div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-r" id="btn-clear-file" style="display:none" onclick="clearUploadedFile()">🗑 Clear File</button>
+    </div>
+    <div style="display:flex;gap:7px;margin-top:9px">
+      <button class="btn btn-sm btn-full" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-sm btn-full btn-b" onclick="exportExcel()">⬇ Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="sbox"><div class="sdot" style="background:var(--muted2)"></div><div><div class="sl">Total</div><div class="sv" id="s-tot">0</div></div></div>
+  <div class="sbox"><div class="sdot" style="background:var(--green);box-shadow:0 0 6px var(--green-g)"></div><div><div class="sl">Up</div><div class="sv" id="s-up" style="color:var(--green)">0</div></div></div>
+  <div class="sbox"><div class="sdot" style="background:var(--red)"></div><div><div class="sl">Down</div><div class="sv" id="s-dn" style="color:var(--red)">0</div></div></div>
+  <div class="sbox"><div class="sdot" style="background:var(--amber)"></div><div><div class="sl">Pending</div><div class="sv" id="s-pd" style="color:var(--amber)">0</div></div></div>
+  <div class="sbox"><div class="sdot" style="background:var(--blue)"></div><div><div class="sl">Uptime %</div><div class="sv" id="s-pct" style="color:var(--blue);font-size:17px">—</div></div></div>
+  <div class="sbox"><div class="sdot" id="live-dot" style="background:var(--muted)"></div><div><div class="sl">Live</div><div class="sv" id="s-live" style="font-size:14px;color:var(--muted)">—</div></div></div>
+</div>
+
+<!-- PROGRESS -->
+<div class="prog" id="prog">
+  <div class="prog-info"><span id="prog-lbl">Adding…</span><span id="prog-pct">0%</span></div>
+  <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="tl">
+    <button class="btn btn-g" onclick="pollMonitors()">↻ Refresh</button>
+    <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+    <button class="btn btn-b" onclick="exportExcel()">⬇ Excel</button>
+  </div>
+  <div class="tr">
+    <span id="run-lbl" style="font-size:11px;color:var(--muted2);font-family:var(--mono)"></span>
+    <button class="btn btn-r btn-sm" onclick="clearAll()">✕ Clear</button>
+  </div>
+</div>
+
+<!-- FILTER -->
+<div class="fbar">
+  <input id="srch" type="text" placeholder="🔍  Filter name or URL…" oninput="renderTable()"/>
+  <div style="display:flex;gap:4px;flex-wrap:wrap">
+    <button class="chip on" onclick="setF('all',this)">All</button>
+    <button class="chip" onclick="setF('up',this)">Up</button>
+    <button class="chip" onclick="setF('down',this)">Down</button>
+    <button class="chip" onclick="setF('pending',this)">Pending</button>
+    <button class="chip" onclick="setF('paused',this)">Paused</button>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="tw">
+  <div class="th">
+    <span class="tt">Monitor Results</span>
+    <span class="ts" id="table-sub">Connect to Uptime Kuma to load monitors</span>
+  </div>
+  <div>
+    <div class="empty" id="empty-state">
+      <div class="empty-ico">🔌</div>
+      <div class="empty-t">Not connected</div>
+      <div class="empty-s">Run <code>node server.js</code>, enter credentials above, click Connect</div>
+    </div>
+    <table id="main-table" style="display:none">
+      <thead><tr>
+        <th>#</th>
+        <th onclick="sortC('name')">Name ⇅</th>
+        <th onclick="sortC('display')">Website ⇅</th>
+        <th>Src</th>
+        <th onclick="sortC('status')">Status ⇅</th>
+        <th>Working?</th>
+        <th>Ping</th>
+        <th onclick="sortC('uptime24')">Uptime 24h ⇅</th>
+        <th onclick="sortC('checkedAt')">Last HB ⇅</th>
+        <th>ID</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="legend" id="legend" style="display:none">
+      <div class="leg"><span style="color:var(--green);font-family:var(--mono);font-size:11px">●</span> Up</div>
+      <div class="leg"><span style="color:var(--red);font-family:var(--mono);font-size:11px">●</span> Down</div>
+      <div class="leg"><span style="color:var(--amber);font-family:var(--mono);font-size:11px">●</span> Pending</div>
+      <div class="leg"><span style="color:var(--blue);font-family:var(--mono);font-size:11px">●</span> Paused</div>
+    </div>
+  </div>
+</div>
+
+</div>
+<footer>UptimeDesk v15 · WebSocket via localhost:3000 · Status: 0=Down 1=Up 2=Pending 3=Maintenance</footer>
+<div id="toast"></div>
+
+<script>
+/* ── CONFIG ── */
+var BACKEND='http://localhost:3000';
+
+/* ── STATE ── */
+var monitors=[];
+var activeFilter='all';
+var sortKey=null,sortAsc=true;
+var logs=[];
+var pollTimer=null,liveTimer=null;
+var isConnected=false;
+var liveCount=0,lastPoll=0;
+
+/* ── CREDENTIALS PERSISTENCE ── */
+var CRED_KEY='uptimedesk_creds';
+function saveCreds(){try{localStorage.setItem(CRED_KEY,JSON.stringify({url:document.getElementById('kurl').value.trim(),user:document.getElementById('kuser').value.trim(),pass:document.getElementById('kpass').value}));}catch(e){}}
+function loadCreds(){try{var c=JSON.parse(localStorage.getItem(CRED_KEY)||'null');if(c&&c.url&&c.user&&c.pass){document.getElementById('kurl').value=c.url;document.getElementById('kuser').value=c.user;document.getElementById('kpass').value=c.pass;return true;}}catch(e){}return false;}
+function clearCreds(){try{localStorage.removeItem(CRED_KEY);}catch(e){}}
+function forgetCreds(){clearCreds();toast('Credentials cleared','tin');addLog('Saved credentials cleared','a');}
+
+/* ── UTILS ── */
+function uid(){return Math.random().toString(36).slice(2,9)}
+function ts(){return new Date().toLocaleTimeString('en-IN',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+function normalizeUrl(raw){
+  if(!raw)return null;
+  raw=String(raw).trim().replace(/\/+$/,'');
+  if(!raw||raw.length<4||raw.includes(' ')||raw.startsWith('#'))return null;
+  if(!raw.includes('.')&&!raw.includes('localhost'))return null;
+  if(!/^https?:\/\//i.test(raw))raw='https://'+raw;
+  try{
+    var u=new URL(raw);
+    // Strip UTM and tracking params — keep the canonical URL clean
+    ['utm_source','utm_medium','utm_campaign','utm_term','utm_content',
+     'utm_id','gmb','gclid','fbclid','msclkid','ref','source'].forEach(p=>u.searchParams.delete(p));
+    // If all query params were tracking params, remove the ? entirely
+    var href=u.href.replace(/\?$/,'').replace(/\/$/,'');
+    return href;
+  }catch(e){return null}
+}
+function getHost(url){
+  try{return new URL(url).hostname.replace(/^www\./,'')}catch(e){return String(url||'')}
+}
+
+/* ── TOAST ── */
+function toast(msg,type){
+  var el=document.getElementById('toast');
+  el.textContent=msg;el.className='show'+(type?' t'+type:'');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.className='',4500);
+}
+
+/* ── LOG ── */
+function addLog(msg,type){
+  logs.push({msg,type:type||'',time:ts()});
+  if(logs.length>200)logs.shift();
+  var box=document.getElementById('logbox');
+  box.innerHTML=logs.map(l=>`<div class="l${l.type||'c'}">[${l.time}] ${esc(l.msg)}</div>`).join('');
+  box.scrollTop=box.scrollHeight;
+}
+function toggleLog(){
+  var b=document.getElementById('logbox'),btn=document.getElementById('log-btn');
+  var v=b.classList.toggle('show');
+  btn.textContent=(v?'▾ Hide':'▸ Show')+' Log';
+}
+
+/* ── BADGES ── */
+function setBadge(state,text){
+  var el=document.getElementById('conn-badge');
+  el.className='badge-pill'+(state?' '+state:'');
+  document.getElementById('conn-txt').textContent=text;
+}
+function setWs(on){
+  var el=document.getElementById('ws-pill');
+  el.className='ws-pill'+(on?' live':'');
+  document.getElementById('ws-txt').textContent=on?'WS live':'WS off';
+}
+
+/* ══════════════════════════════════════
+   CONNECT
+══════════════════════════════════════ */
+async function connect(){
+  var url=document.getElementById('kurl').value.trim().replace(/\/+$/,'');
+  var user=document.getElementById('kuser').value.trim();
+  var pass=document.getElementById('kpass').value;
+  if(!url){toast('Enter Kuma URL','er');return}
+  if(!user){toast('Enter username','er');return}
+  if(!pass){toast('Enter password','er');return}
+
+  logs=[];
+  addLog('Checking backend at '+BACKEND+'…','a');
+  setBadge('ld','Connecting…');
+  document.getElementById('btn-conn').disabled=true;
+  document.getElementById('btn-conn').textContent='…';
+
+  try{
+    var ping=await ft(BACKEND+'/status',{},5000);
+    if(!ping.ok)throw new Error('HTTP '+ping.status);
+    addLog('✓ Backend reachable','g');
+  }catch(e){
+    addLog('✗ Backend not reachable: '+e.message,'r');
+    addLog('Run: node server.js','a');
+    setBadge('er','Backend offline');
+    document.getElementById('btn-conn').disabled=false;
+    document.getElementById('btn-conn').textContent='⚡ Connect';
+    document.getElementById('logbox').classList.add('show');
+    document.getElementById('log-btn').textContent='▾ Hide Log';
+    toast('Backend offline — run node server.js first','er');
+    return;
+  }
+
+  try{
+    var r=await ft(BACKEND+'/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,username:user,password:pass})},10000);
+    var d=await r.json();
+    if(!d.ok){
+      addLog('Backend error: '+d.msg,'r');
+      setBadge('er','Error');toast('Error: '+d.msg,'er');
+      document.getElementById('btn-conn').disabled=false;
+      document.getElementById('btn-conn').textContent='⚡ Connect';
+      return;
+    }
+    addLog('✓ Backend accepted — opening WebSocket to Kuma…','g');
+    saveCreds();
+  }catch(e){
+    addLog('Error: '+e.message,'r');
+    setBadge('er','Error');toast('Error: '+e.message,'er');
+    document.getElementById('btn-conn').disabled=false;
+    document.getElementById('btn-conn').textContent='⚡ Connect';
+    return;
+  }
+
+  document.getElementById('btn-conn').disabled=false;
+  document.getElementById('btn-conn').textContent='⚡ Connect';
+  await sleep(2000);
+  startPolling();
+  // If URLs are already in the textarea (loaded from file before connect), auto-add them
+  var queued=document.getElementById('bulk-in').value.trim();
+  if(queued){
+    addLog('Queued URLs found — auto-adding monitors…','a');
+    toast('Auto-adding queued URLs to Kuma…','ok');
+    setTimeout(addMonitors,1500);
+  }
+}
+
+/* ══════════════════════════════════════
+   POLLING  (every 3s = effectively live)
+══════════════════════════════════════ */
+function startPolling(){
+  clearInterval(pollTimer);
+  isConnected=true;
+  pollMonitors();
+  pollTimer=setInterval(pollMonitors,3000);
+  clearInterval(liveTimer);
+  liveTimer=setInterval(()=>{
+    if(!isConnected)return;
+    liveCount++;
+    document.getElementById('s-live').textContent=liveCount;
+    document.getElementById('s-live').style.color='var(--green)';
+    document.getElementById('live-dot').style.background='var(--green)';
+    document.getElementById('live-dot').style.boxShadow='0 0 6px var(--green-g)';
+  },3000);
+}
+
+async function pollMonitors(){
+  try{
+    var [sr,mr]=await Promise.all([
+      ft(BACKEND+'/status',{},5000),
+      ft(BACKEND+'/monitors',{},8000)
+    ]);
+    if(!sr.ok||!mr.ok)throw new Error('Backend error');
+    var status=await sr.json();
+    var list=await mr.json();
+
+    if(status.authOk){
+      setBadge('ok','Connected · '+status.monitorCount);
+      setWs(true);
+      document.getElementById('btn-ref').style.display='';
+      document.getElementById('nav-cnt').style.display='block';
+      document.getElementById('nav-cnt').textContent=status.monitorCount+' monitors';
+    }else if(status.connected){
+      setBadge('ld','Authenticating…');setWs(false);
+    }else{
+      setBadge('er','WS disconnected');setWs(false);
+    }
+
+    // Build API monitors
+    var apiMap={};
+    list.forEach(m=>{
+      var url=m.url||'';
+      if(m.hostname&&!url)url=(m.type==='port'?'tcp://':'')+m.hostname+(m.port?':'+m.port:'');
+      var nurl=normalizeUrl(url)||url;
+      var display=nurl?getHost(nurl):(m.name||'Monitor #'+m.id);
+      apiMap['kuma-'+m.id]={
+        id:'kuma-'+m.id,kumaId:m.id,
+        name:m.name||'Monitor #'+m.id,
+        url:nurl||url,display:display,
+        status:parseStatus(m.status,m.active),
+        ping:m.ping,uptime24:m.uptime24,
+        checkedAt:m.checkedAt?fmtTime(m.checkedAt):'—',
+        source:'ws',active:m.active!==false&&m.active!==0,
+        type:m.type||'http'
+      };
+    });
+
+    // Keep file-uploaded monitors that aren't duplicated by API
+    var apiHosts=new Set(Object.values(apiMap).map(m=>getHost(m.url).toLowerCase()));
+    var fileKeep=monitors.filter(m=>m.source==='file'&&!apiHosts.has(getHost(m.url).toLowerCase()));
+
+    // Keep pending temp entries (just added, not yet in Kuma's list) — identified by tmp- prefix or kumaId not in apiMap
+    var apiKumaIds=new Set(list.map(m=>String(m.id)));
+    var pendingKeep=monitors.filter(m=>{
+      if(m.source!=='ws')return false;
+      if(m.id.startsWith('tmp-'))return true; // still waiting for Kuma confirmation
+      if(m.kumaId&&!apiKumaIds.has(String(m.kumaId)))return true; // got ID but not in list yet
+      return false;
+    });
+
+    var prev=new Map(monitors.map(m=>[m.id,m.status]));
+    monitors=[...Object.values(apiMap),...fileKeep,...pendingKeep];
+
+    // Flash rows that changed status
+    monitors.forEach(m=>{
+      if(prev.has(m.id)&&prev.get(m.id)!==m.status){
+        setTimeout(()=>{
+          var row=document.getElementById('row-'+m.id);
+          if(row){row.classList.remove('flash');void row.offsetWidth;row.classList.add('flash')}
+        },50);
+      }
+    });
+
+    var first=lastPoll===0;
+    lastPoll=Date.now();
+    if(first){
+      addLog('✓ Loaded '+list.length+' monitors via WebSocket','g');
+      toast('✓ '+list.length+' monitors loaded','ok');
+    }
+
+    document.getElementById('table-sub').textContent='WebSocket live · '+ts();
+    document.getElementById('sync-lbl').textContent='Polling 3s · '+ts();
+    document.getElementById('run-lbl').textContent='Updated '+ts();
+    renderTable();updateStats();
+  }catch(e){
+    if(isConnected)addLog('Poll error: '+e.message,'r');
+    setBadge('er','Backend error');setWs(false);
+  }
+}
+
+function parseStatus(s,active){
+  if(active===false||active===0)return'paused';
+  if(s===1)return'up';if(s===0)return'down';if(s===2)return'pending';if(s===3)return'maintenance';
+  return'pending';
+}
+function fmtTime(t){
+  if(!t)return'—';
+  try{return new Date(t).toLocaleTimeString('en-IN',{hour12:false})}catch(e){return String(t)}
+}
+
+/* ══════════════════════════════════════
+   ADD MONITORS — fixed: shows instantly as Pending,
+   then live status arrives via next poll
+══════════════════════════════════════ */
+/* Build a short human-readable name from any URL, including long query URLs */
+function urlToName(url){
+  try{
+    var u=new URL(url);
+    // For Google Maps / search query URLs extract the query text
+    var q=u.searchParams.get('query')||u.searchParams.get('q')||u.searchParams.get('search');
+    if(q) return q.replace(/[+%20]+/g,' ').trim().slice(0,60);
+    // For normal URLs use hostname + path (trimmed)
+    var path=u.pathname.replace(/\/+$/,'');
+    var base=u.hostname.replace(/^www\./,'');
+    return path&&path!=='/'?base+path.slice(0,40):base;
+  }catch(e){return String(url).slice(0,60);}
+}
+
+async function addMonitors(){
+  if(!isConnected){toast('Connect first','er');return}
+  var lines=document.getElementById('bulk-in').value.trim().split('\n').filter(l=>l.trim());
+  if(!lines.length){toast('Enter URLs first','er');return}
+
+  var urls=lines.map(l=>normalizeUrl(l.trim())).filter(Boolean);
+  if(!urls.length){toast('No valid URLs found','er');return}
+
+  // Dedup by full normalized URL — allow different paths on same domain (location pages etc.)
+  // but prevent adding the exact same URL twice
+  var existUrls=new Set(monitors.map(m=>normalizeUrl(m.url)||m.url));
+  var seenInBatch=new Set();
+  var skipped=0;
+  var toAdd=urls.filter(u=>{
+    if(existUrls.has(u)||seenInBatch.has(u)){skipped++;return false;}
+    seenInBatch.add(u);
+    return true;
+  });
+  if(skipped>0)addLog(skipped+' URL(s) skipped — already monitored in Kuma','a');
+  if(!toAdd.length){toast('All URLs already monitored in Kuma','tin');return}
+
+  addLog('Adding '+toAdd.length+' monitors via WebSocket…','a');
+  document.getElementById('prog').style.display='block';
+  var added=0,failed=0;
+
+  for(var i=0;i<toAdd.length;i++){
+    var url=toAdd[i];
+    var name=urlToName(url);
+    var display=getHost(url);
+    document.getElementById('prog-lbl').textContent='Adding ('+( i+1)+'/'+toAdd.length+'): '+name;
+    document.getElementById('prog-fill').style.width=Math.round((i/toAdd.length)*100)+'%';
+    document.getElementById('prog-pct').textContent=Math.round((i/toAdd.length)*100)+'%';
+
+    // Show immediately as Pending in the table
+    var tmpId='tmp-'+uid();
+    monitors.push({
+      id:tmpId,kumaId:null,name:name,url:url,display:display,
+      status:'pending',ping:null,uptime24:null,checkedAt:'Adding…',source:'ws',active:true,type:'http'
+    });
+    renderTable();updateStats();
+
+    try{
+      var r=await ft(BACKEND+'/monitors',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name,url,type:'http',interval:60})
+      },12000);
+      var d=await r.json();
+      if(d.ok){
+        added++;
+        var realId=d.monitor&&d.monitor.id?'kuma-'+d.monitor.id:tmpId;
+        addLog('✓ Added: '+name+(d.monitor?' (ID:'+d.monitor.id+')':''),'g');
+        var tmp=monitors.find(m=>m.id===tmpId);
+        if(tmp){tmp.id=realId;tmp.kumaId=d.monitor?d.monitor.id:null;tmp.checkedAt='Pending…';}
+      }else{
+        failed++;
+        addLog('✗ Failed: '+name+' — '+d.msg,'r');
+        monitors=monitors.filter(m=>m.id!==tmpId);
+      }
+    }catch(e){
+      failed++;
+      addLog('✗ Error: '+name+' — '+e.message,'r');
+      monitors=monitors.filter(m=>m.id!==tmpId);
+    }
+    renderTable();updateStats();
+    await sleep(300);
+  }
+
+  document.getElementById('prog-fill').style.width='100%';
+  document.getElementById('prog-pct').textContent='100%';
+  setTimeout(()=>document.getElementById('prog').style.display='none',1200);
+  document.getElementById('bulk-in').value='';
+  document.getElementById('file-preview').innerHTML='';
+  addLog('Done: '+added+' added, '+failed+' failed — fast-syncing…','g');
+  toast('✓ '+added+' added'+(failed?' ('+failed+' failed)':'')+'  — watching for Up/Down…','ok');
+  // Fast-sync: poll every 1s for 90s to catch first Kuma heartbeats quickly
+  startFastSync(90);
+}
+
+/* Fast-poll after adding monitors to catch first heartbeat without waiting 60s */
+function startFastSync(seconds){
+  clearInterval(pollTimer);
+  var remaining=seconds;
+  addLog('Fast-sync active — polling every 1s for '+seconds+'s…','a');
+  function tick(){
+    pollMonitors();
+    remaining--;
+    document.getElementById('sync-lbl').textContent='⚡ Fast-sync: '+remaining+'s…';
+    if(remaining<=0){
+      addLog('Fast-sync complete — back to normal 3s polling','g');
+      document.getElementById('sync-lbl').textContent='Polling 3s · '+ts();
+      pollTimer=setInterval(pollMonitors,3000);
+    }
+  }
+  tick();
+  pollTimer=setInterval(tick,1000);
+}
+
+/* ══════════════════════════════════════
+   FILE UPLOAD — optimized Excel/CSV parser
+   Handles: .xlsx, .xls, .csv, .txt
+   Auto-detects URL column by header name
+   Shows preview table before adding
+══════════════════════════════════════ */
+async function handleFile(e){
+  var file=e.target.files[0];
+  if(!file)return;
+  e.target.value='';
+
+  var urls=[];
+  var rawRows=[];
+  var totalDataRows=0;
+
+  try{
+    if(/\.(csv|txt)$/i.test(file.name)){
+      var text=await file.text();
+      var result=parseCsvText(text);
+      urls=result.urls;rawRows=result.rows;totalDataRows=result.total||urls.length;
+    }else{
+      // Excel: use SheetJS
+      var buf=await file.arrayBuffer();
+      var wb=XLSX.read(buf,{type:'array',cellText:true,cellDates:true});
+      var sheet=wb.Sheets[wb.SheetNames[0]];
+      // sheet_to_json with raw:false gives us strings
+      var rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
+      var result2=parseRows(rows);
+      urls=result2.urls;rawRows=result2.rows;totalDataRows=result2.total||urls.length;
+    }
+  }catch(err){
+    toast('File error: '+err.message,'er');
+    addLog('File parse error: '+err.message,'r');
+    return;
+  }
+
+  if(!urls.length){
+    toast('No URLs found in file','er');
+    addLog('No URLs found — make sure there is a column header: Website, URL, Domain, Link or Site','r');
+    return;
+  }
+
+  var skippedNoUrl=totalDataRows-urls.length;
+
+  showFilePreview(rawRows,urls);
+  document.getElementById('bulk-in').value=urls.join('\n');
+  document.getElementById('btn-clear-file').style.display='';
+  addLog('✓ File loaded: '+totalDataRows+' rows → '+urls.length+' URLs extracted'+(skippedNoUrl>0?' ('+skippedNoUrl+' rows skipped — no website URL found)':''),'g');
+
+  if(isConnected){
+    toast('✓ '+urls.length+' URLs loaded — adding to Kuma now…','ok');
+    addLog('Connected — auto-adding all monitors now…','a');
+    // slight delay so preview renders first
+    setTimeout(addMonitors,300);
+  }else{
+    toast('✓ '+urls.length+' URLs ready — connect to Kuma to start monitoring','ok');
+    addLog('URLs queued — click Connect, monitoring will start automatically','a');
+  }
+}
+
+function parseCsvText(txt){
+  var lines=txt.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length)return{urls:[],rows:[]};
+
+  // Detect separator
+  var sep=lines[0].includes('\t')?'\t':',';
+
+  var headers=lines[0].split(sep).map(h=>h.replace(/['"]/g,'').trim().toLowerCase());
+  var urlCol=findUrlCol(headers);
+
+  var urls=[];
+  var rows=[];
+  var seenUrls=new Set(); // deduplicate by full normalized URL
+
+  var start=urlCol!==-1?1:0;
+  for(var i=start;i<lines.length;i++){
+    var parts=splitCsvLine(lines[i],sep);
+    var val='';
+    if(urlCol!==-1){
+      val=String(parts[urlCol]||'').replace(/['"]/g,'').trim();
+    }else{
+      // No header — scan all columns for something URL-like (prefer non-Google domains)
+      var bestP='';
+      for(var p of parts){
+        var s=String(p||'').replace(/['"]/g,'').trim();
+        if(looksLikeUrl(s)){
+          if(!bestP)bestP=s;
+          if(!/google\.com/i.test(s)){bestP=s;break}
+        }
+      }
+      val=bestP;
+    }
+    if(val&&looksLikeUrl(val)){
+      var norm=normalizeUrl(val);
+      if(norm){
+        if(!seenUrls.has(norm)){
+          seenUrls.add(norm);
+          urls.push(norm);
+          rows.push({raw:val,url:norm});
+        }
+      }
+    }
+  }
+  var totalLines=lines.length-(urlCol!==-1?1:0); // exclude header line if present
+  return{urls,rows,total:totalLines};
+}
+
+function parseRows(rows){
+  if(!rows.length)return{urls:[],rows:[]};
+
+  // Find URL column in first row (headers)
+  var headers=rows[0].map(h=>String(h||'').trim().toLowerCase());
+  var urlCol=findUrlCol(headers);
+
+  var urls=[];
+  var dataRows=[];
+  var seenUrls=new Set(); // deduplicate by full normalized URL (NOT hostname — different location pages of same domain must each be monitored)
+
+  var start=urlCol!==-1?1:0;
+  for(var i=start;i<rows.length;i++){
+    var row=rows[i];
+    var val='';
+    if(urlCol!==-1){
+      val=String(row[urlCol]||'').trim();
+    }else{
+      // Scan all cells — prefer non-Google-Maps URLs
+      var bestVal='';
+      for(var cell of row){
+        var s=String(cell||'').trim();
+        if(looksLikeUrl(s)){
+          if(!bestVal)bestVal=s;
+          if(!/google\.com/i.test(s)){bestVal=s;break}
+        }
+      }
+      val=bestVal;
+    }
+    if(val&&looksLikeUrl(val)){
+      var norm=normalizeUrl(val);
+      if(norm){
+        // Deduplicate by exact normalized URL (UTM-stripped) so same page is not added twice,
+        // but different pages/paths on the same domain ARE each added (location-specific pages etc.)
+        if(!seenUrls.has(norm)){
+          seenUrls.add(norm);
+          urls.push(norm);
+          dataRows.push({raw:val,url:norm});
+        }
+      }
+    }
+  }
+  // Count non-empty data rows (rows after header that have at least one non-blank cell)
+  var totalNonEmpty=0;
+  for(var j=(urlCol!==-1?1:0);j<rows.length;j++){
+    if(rows[j].some(c=>String(c||'').trim()))totalNonEmpty++;
+  }
+  return{urls,rows:dataRows,total:totalNonEmpty};
+}
+
+function findUrlCol(headers){
+  // Priority order: 'website' first (actual business site), then fallbacks.
+  // 'url' is intentionally lower priority — it usually contains Google Maps URLs.
+  var exactKeys=['website','domain','site','link','webpage','web','url','address'];
+  for(var k of exactKeys){
+    for(var i=0;i<headers.length;i++){
+      if(headers[i]===k)return i;
+    }
+  }
+  // Partial match fallback
+  for(var k of exactKeys){
+    for(var i=0;i<headers.length;i++){
+      if(headers[i].includes(k))return i;
+    }
+  }
+  return -1;
+}
+
+function isGoogleMapsUrl(s){
+  return /google\.com\/maps/i.test(s)||/maps\.google\./i.test(s)||/goo\.gl\/maps/i.test(s);
+}
+
+function looksLikeUrl(s){
+  if(!s||s.length<4||s.includes(' '))return false;
+  // Reject Google Maps, image CDN, and Google search URLs — not business websites
+  if(isGoogleMapsUrl(s))return false;
+  if(/google\.com\/(search|imgres|webhp)/i.test(s))return false;
+  if(/lh3\.googleusercontent/i.test(s))return false;
+  // Allow http/https, bare domains, IP addresses
+  return /^https?:\/\//i.test(s)||/[a-z0-9-]+\.[a-z]{2,}/i.test(s)||/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(s);
+}
+
+function splitCsvLine(line,sep){
+  // Handle quoted fields properly
+  var result=[],current='',inQuote=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(c==='"'){inQuote=!inQuote}
+    else if(c===sep&&!inQuote){result.push(current);current=''}
+    else current+=c;
+  }
+  result.push(current);
+  return result;
+}
+
+function showFilePreview(rows,urls){
+  if(!rows.length){document.getElementById('file-preview').innerHTML='';return}
+  var preview=rows.slice(0,8);
+  var html='<div class="preview-wrap"><table><thead><tr><th>#</th><th>URL Detected</th><th>Valid?</th></tr></thead><tbody>';
+  preview.forEach((r,i)=>{
+    var norm=normalizeUrl(r.raw)||r.url;
+    var ok=!!norm;
+    html+=`<tr><td class="tc">${i+1}</td><td class="preview-url">${esc(r.raw)}</td><td class="${ok?'pv-ok':'pv-bad'}">${ok?'✓':'✗'}</td></tr>`;
+  });
+  if(rows.length>8)html+=`<tr><td colspan="3" style="color:var(--muted);font-size:10px;padding:5px 9px">… and ${rows.length-8} more</td></tr>`;
+  html+='</tbody></table></div>';
+  document.getElementById('file-preview').innerHTML=html;
+}
+
+// Drag drop
+var dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag');
+  var f=e.dataTransfer.files[0];
+  if(f)handleFile({target:{files:[f],value:''}});
+});
+
+/* ── FETCH TIMEOUT ── */
+function ft(url,opts,ms){
+  var ctrl=new AbortController();
+  var t=setTimeout(()=>ctrl.abort(),ms||10000);
+  return fetch(url,{...opts,signal:ctrl.signal}).finally(()=>clearTimeout(t));
+}
+
+/* ── FILTER / SORT ── */
+function setF(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.chip').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderTable();
+}
+function sortC(key){
+  if(sortKey===key)sortAsc=!sortAsc;else{sortKey=key;sortAsc=true}
+  renderTable();
+}
+function getFiltered(){
+  var q=(document.getElementById('srch').value||'').toLowerCase();
+  var list=monitors.filter(m=>{
+    if(activeFilter==='up'&&m.status!=='up'&&m.status!=='redirect')return false;
+    if(activeFilter==='down'&&m.status!=='down')return false;
+    if(activeFilter==='pending'&&m.status!=='pending')return false;
+    if(activeFilter==='paused'&&m.status!=='paused')return false;
+    if(q&&!(m.display+' '+m.name+' '+m.url).toLowerCase().includes(q))return false;
+    return true;
+  });
+  if(sortKey)list.sort((a,b)=>{var r=String(a[sortKey]||'').localeCompare(String(b[sortKey]||''),undefined,{numeric:true});return sortAsc?r:-r});
+  return list;
+}
+
+/* ── RENDER TABLE ── */
+function badgeHTML(s){
+  switch(s.status){
+    case'up':return'<span class="bdg bup"><span class="bd"></span>Up</span>';
+    case'down':return'<span class="bdg bdn"><span class="bd"></span>Down</span>';
+    case'redirect':return'<span class="bdg brd"><span class="bd"></span>Redirect</span>';
+    case'pending':return'<span class="bdg bpd"><span class="bd"></span>Pending</span>';
+    case'paused':return'<span class="bdg bps"><span class="bd"></span>Paused</span>';
+    case'maintenance':return'<span class="bdg bmt"><span class="bd"></span>Maint.</span>';
+    default:return'<span class="bdg bpd"><span class="bd"></span>Pending</span>';
+  }
+}
+function workHTML(s){
+  if(s.status==='up'||s.status==='redirect')return'<span class="wyes">Yes ✓</span>';
+  if(s.status==='down')return'<span class="wno">No ✗</span>';
+  if(s.status==='paused')return'<span class="wna">Paused</span>';
+  if(s.status==='maintenance')return'<span class="wna">Maint.</span>';
+  return'<span class="wna">—</span>';
+}
+function pingHTML(p){
+  if(p===null||p===undefined)return'<span class="png-n">—</span>';
+  return'<span class="'+(p<300?'png-g':'png-s')+'">'+p+'ms</span>';
+}
+function uptimeHTML(u){
+  if(u===null||u===undefined)return'<span class="upt-n">—</span>';
+  var n=parseFloat(u);if(isNaN(n))return'<span class="upt-n">—</span>';
+  return'<span class="'+(n>=90?'upt-g':'upt-b')+'">'+n.toFixed(1)+'%</span>';
+}
+
+function renderTable(){
+  var empty=document.getElementById('empty-state');
+  var table=document.getElementById('main-table');
+  var legend=document.getElementById('legend');
+  if(!monitors.length){empty.style.display='';table.style.display='none';legend.style.display='none';return}
+  var list=getFiltered();
+  empty.style.display='none';table.style.display='';legend.style.display='flex';
+  document.getElementById('tbody').innerHTML=list.map((s,i)=>{
+    var src=s.source==='ws'?'<span class="src-ws">ws</span>':'<span class="src-file">file</span>';
+    var dl=s.url&&!/^tcp:\/\//i.test(s.url);
+    var hasKuma=s.kumaId&&!String(s.id).startsWith('tmp-');
+    var isPaused=s.status==='paused';
+    var visitBtn=dl?`<button class="act-btn act-visit" title="Open website" onclick="window.open('${esc(s.url)}','_blank')">🌐</button>`:'';
+    var stopStart=hasKuma
+      ?(isPaused
+        ?`<button class="act-btn act-start" title="Resume monitor" onclick="resumeMon('${s.id}',${s.kumaId})">▶ Start</button>`
+        :`<button class="act-btn act-stop" title="Pause monitor" onclick="stopMon('${s.id}',${s.kumaId})">⏸ Stop</button>`)
+      :'';
+    var delBtn=hasKuma
+      ?`<button class="del-kuma-btn" title="Delete from Kuma & list" onclick="delMonKuma('${s.id}',${s.kumaId})">🗑 Del</button>`
+      :`<button class="del-btn" title="Remove from list" onclick="delMon('${s.id}')">✕</button>`;
+    return`<tr id="row-${s.id}">
+      <td class="tc">${i+1}</td>
+      <td class="nc" style="font-weight:600;color:var(--text)">${esc(s.name)}</td>
+      <td class="url-cell">${dl?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.display)}</a>`:esc(s.display)}</td>
+      <td>${src}</td>
+      <td>${badgeHTML(s)}</td>
+      <td>${workHTML(s)}</td>
+      <td>${pingHTML(s.ping)}</td>
+      <td>${uptimeHTML(s.uptime24)}</td>
+      <td class="tc">${esc(s.checkedAt||'—')}</td>
+      <td class="tc">${s.kumaId?'#'+s.kumaId:'—'}</td>
+      <td><div class="act-row">${visitBtn}${stopStart}${delBtn}</div></td>
+    </tr>`;
+  }).join('');
+}
+function delMon(id){monitors=monitors.filter(m=>m.id!==id);renderTable();updateStats()}
+
+async function delMonKuma(localId, kumaId){
+  if(!isConnected){
+    // Not connected — just remove from local list
+    monitors=monitors.filter(m=>m.id!==localId);
+    renderTable();updateStats();
+    toast('Removed from list (not connected to Kuma)','tin');
+    return;
+  }
+  if(!confirm('Delete monitor #'+kumaId+' from Uptime Kuma?'))return;
+  try{
+    var r=await ft(BACKEND+'/monitors/'+kumaId,{method:'DELETE'},8000);
+    var d=await r.json();
+    if(d.ok){
+      monitors=monitors.filter(m=>m.id!==localId);
+      renderTable();updateStats();
+      toast('🗑 Monitor deleted from Kuma','ok');
+      addLog('🗑 Deleted monitor #'+kumaId+' from Kuma','r');
+    }else{
+      toast('Failed to delete from Kuma','er');
+      addLog('Delete failed for #'+kumaId,'r');
+    }
+  }catch(e){toast('Error: '+e.message,'er')}
+}
+
+async function stopMon(localId, kumaId){
+  if(!isConnected){toast('Not connected','er');return}
+  try{
+    var r=await ft(BACKEND+'/monitors/'+kumaId+'/pause',{method:'POST'},8000);
+    var d=await r.json();
+    if(d.ok){
+      var m=monitors.find(x=>x.id===localId);
+      if(m){m.status='paused';m.active=false;}
+      renderTable();updateStats();
+      toast('⏸ Monitor paused','ok');
+      addLog('⏸ Paused monitor #'+kumaId,'a');
+    }else{toast('Failed to pause','er')}
+  }catch(e){toast('Error: '+e.message,'er')}
+}
+
+async function resumeMon(localId, kumaId){
+  if(!isConnected){toast('Not connected','er');return}
+  try{
+    var r=await ft(BACKEND+'/monitors/'+kumaId+'/resume',{method:'POST'},8000);
+    var d=await r.json();
+    if(d.ok){
+      var m=monitors.find(x=>x.id===localId);
+      if(m){m.status='pending';m.active=true;}
+      renderTable();updateStats();
+      toast('▶ Monitor resumed','ok');
+      addLog('▶ Resumed monitor #'+kumaId,'g');
+      startFastSync(30);
+    }else{toast('Failed to resume','er')}
+  }catch(e){toast('Error: '+e.message,'er')}
+}
+
+/* ── STATS ── */
+function updateStats(){
+  var up=monitors.filter(m=>m.status==='up').length;
+  var rd=monitors.filter(m=>m.status==='redirect').length;
+  var dn=monitors.filter(m=>m.status==='down').length;
+  var pd=monitors.filter(m=>m.status==='pending').length;
+  var chk=up+rd+dn;
+  document.getElementById('s-tot').textContent=monitors.length;
+  document.getElementById('s-up').textContent=up+rd;
+  document.getElementById('s-dn').textContent=dn;
+  document.getElementById('s-pd').textContent=pd;
+  document.getElementById('s-pct').textContent=chk?Math.round((up+rd)/chk*100)+'%':'—';
+}
+
+function clearAll(){
+  if(!confirm('Clear all monitors and disconnect?'))return;
+  clearCreds();
+  monitors=[];isConnected=false;lastPoll=0;liveCount=0;
+  _uploadedFileData=null;
+  clearInterval(pollTimer);clearInterval(liveTimer);
+  renderTable();updateStats();
+  setBadge('','Not connected');setWs(false);
+  document.getElementById('nav-cnt').style.display='none';
+  document.getElementById('run-lbl').textContent='';
+  document.getElementById('sync-lbl').textContent='';
+  document.getElementById('btn-ref').style.display='none';
+  document.getElementById('table-sub').textContent='Connect to Uptime Kuma to load monitors';
+  document.getElementById('s-live').textContent='—';
+  document.getElementById('s-live').style.color='var(--muted)';
+  document.getElementById('live-dot').style.background='var(--muted)';
+  document.getElementById('live-dot').style.boxShadow='none';
+  document.getElementById('file-preview').innerHTML='';
+  document.getElementById('btn-clear-file').style.display='none';
+  document.getElementById('fi').value='';
+}
+
+/* ── EXPORT ── */
+var HDR=['#','Name','Website','URL','Source','Status','Up/Down','Working?','Ping','Uptime 24h','Last Heartbeat','Kuma ID'];
+function buildRows(){
+  return monitors.map((s,i)=>{
+    var updown=s.status==='up'||s.status==='redirect'?'UP':s.status==='down'?'DOWN':s.status==='paused'?'PAUSED':s.status==='pending'?'PENDING':'UNKNOWN';
+    return[
+      i+1,s.name,s.display,s.url||s.display,s.source,s.status,
+      updown,
+      s.status==='up'?'Yes':s.status==='down'?'No':s.status==='paused'?'Paused':'—',
+      s.ping!=null?s.ping+'ms':'—',
+      s.uptime24!=null?parseFloat(s.uptime24).toFixed(1)+'%':'—',
+      s.checkedAt||'—',s.kumaId||'—'
+    ];
+  });
+}
+function exportCSV(){
+  if(!monitors.length){toast('Nothing to export','er');return}
+  var csv=[HDR].concat(buildRows()).map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv'}),'kuma-'+ds()+'.csv');toast('CSV downloaded','ok');
+}
+function exportExcel(){
+  if(!monitors.length){toast('Nothing to export','er');return}
+  var rows=[HDR].concat(buildRows());
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+
+  // Style header row
+  var range=XLSX.utils.decode_range(ws['!ref']);
+  for(var c=range.s.c;c<=range.e.c;c++){
+    var hAddr=XLSX.utils.encode_cell({r:0,c:c});
+    if(ws[hAddr]){ws[hAddr].s={font:{bold:true},fill:{fgColor:{rgb:'1A2540'}},alignment:{horizontal:'center'}}}
+  }
+
+  // Colour-code the Up/Down column (col index 6 = G)
+  monitors.forEach(function(s,i){
+    var rowIdx=i+1;
+    var udAddr=XLSX.utils.encode_cell({r:rowIdx,c:6});
+    if(ws[udAddr]){
+      var col=s.status==='up'||s.status==='redirect'?'00A872':s.status==='down'?'E02049':s.status==='paused'?'1A6FD4':'D08000';
+      ws[udAddr].s={font:{bold:true,color:{rgb:col}},alignment:{horizontal:'center'}};
+    }
+    // Hyperlinks for URL column (col 3 = D) and Website col (col 2 = C)
+    var urlVal=s.url||s.display;
+    if(urlVal&&/^https?:\/\//i.test(urlVal)){
+      var dAddr=XLSX.utils.encode_cell({r:rowIdx,c:3});
+      if(ws[dAddr])ws[dAddr].l={Target:urlVal,Tooltip:urlVal};
+      var cAddr=XLSX.utils.encode_cell({r:rowIdx,c:2});
+      if(ws[cAddr])ws[cAddr].l={Target:urlVal,Tooltip:urlVal};
+    }
+  });
+
+  // Column widths
+  ws['!cols']=[{wch:4},{wch:26},{wch:22},{wch:38},{wch:8},{wch:10},{wch:9},{wch:9},{wch:9},{wch:11},{wch:18},{wch:8}];
+
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Monitors');
+  XLSX.writeFile(wb,'kuma-'+ds()+'.xlsx');toast('Excel downloaded','ok');
+}
+function dl(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5e3)}
+function ds(){return new Date().toISOString().slice(0,10)}
+
+/* ── THEME TOGGLE ── */
+var _darkMode=true;
+function toggleTheme(){
+  _darkMode=!_darkMode;
+  document.body.classList.toggle('light',!_darkMode);
+  document.getElementById('theme-btn').textContent=_darkMode?'🌙':'☀️';
+  try{localStorage.setItem('uptimedesk_theme',_darkMode?'dark':'light');}catch(e){}
+}
+function initTheme(){
+  try{var t=localStorage.getItem('uptimedesk_theme');if(t==='light'){_darkMode=false;document.body.classList.add('light');document.getElementById('theme-btn').textContent='☀️';}}catch(e){}
+}
+
+/* ── CLEAR UPLOADED FILE ── */
+var _uploadedFileData=null; // stores {wb, filename} for later download with status
+function clearUploadedFile(){
+  _uploadedFileData=null;
+  document.getElementById('file-preview').innerHTML='';
+  document.getElementById('bulk-in').value='';
+  document.getElementById('btn-clear-file').style.display='none';
+  document.getElementById('fi').value='';
+  toast('File cleared','tin');
+  addLog('Uploaded file cleared','a');
+}
+
+/* ── AUTO-CONNECT ON PAGE LOAD ── */
+window.addEventListener('DOMContentLoaded',function(){
+  initTheme();
+  if(loadCreds()){
+    addLog('Saved credentials found — auto-connecting…','a');
+    setBadge('ld','Auto-connecting…');
+    setTimeout(connect,600);
+  }
+});
+</script>
+</body>
+</html>
